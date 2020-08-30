@@ -20,14 +20,12 @@ namespace SuperAdventure
         {
             InitializeComponent();
 
-            _player = new Player(10, 10, 20, 0, 1);
+            _player = new Player(10, 10, 20, 0);
             MoveTo(World.LocationByID(World.LOCATION_ID_HOME));
             _player.Inventory.Add(new InventoryItem(World.ItemByID(World.ITEM_ID_RUSTY_SWORD), 1));
 
-            lblHitPoints.Text = _player.CurrentHitPoints.ToString();
-            lblGold.Text = _player.Gold.ToString();
-            lblExperience.Text = _player.ExperiencePoints.ToString();
-            lblLevel.Text = _player.Level.ToString();
+            UpdatePlayerStats();
+            ScrollToBottomOfMessages();
         }
 
         private void SuperAdventure_Load(object sender, EventArgs e)
@@ -68,6 +66,10 @@ namespace SuperAdventure
 
             // Display message
             rtbMessages.Text += "You hit the " + _currentMonster.Name + " for " + damageToMonster.ToString() + " points." + Environment.NewLine;
+            ScrollToBottomOfMessages();
+
+            // Monster gets their turn to atack
+            MonsterAttack();
 
             //Check if the monster is dead
             if (_currentMonster.CurrentHitPoints <= 0)
@@ -75,14 +77,17 @@ namespace SuperAdventure
                 // Monster is dead
                 rtbMessages.Text += Environment.NewLine;
                 rtbMessages.Text += "You defeated the " + _currentMonster.Name + Environment.NewLine;
+                ScrollToBottomOfMessages();
 
                 // Give the player experience points for killing the monster
                 _player.ExperiencePoints += _currentMonster.RewardExperiencePoints;
                 rtbMessages.Text += "You recieve " + _currentMonster.RewardExperiencePoints.ToString() + " experience points." + Environment.NewLine;
+                ScrollToBottomOfMessages();
 
                 // Give the player gold for killing the monster
                 _player.ExperiencePoints += _currentMonster.RewardExperiencePoints;
                 rtbMessages.Text += "You recieve " + _currentMonster.RewardGold.ToString() + " gold " + Environment.NewLine;
+                ScrollToBottomOfMessages();
 
                 // Get random loot items from the monster
                 List<InventoryItem> looteddItems = new List<InventoryItem>();
@@ -115,20 +120,18 @@ namespace SuperAdventure
 
                     if (inventoryItem.Quantity == 1)
                     {
-                        rtbMessages.Text += "You loot " + inventoryItem.ToString() + " " + inventoryItem.Details.Name + Environment.NewLine;
+                        rtbMessages.Text += "You loot " + inventoryItem.Details.Name + Environment.NewLine;
+                        ScrollToBottomOfMessages();
                     }
 
                     else
                     {
                         rtbMessages.Text += "You loot " + inventoryItem.Quantity.ToString() + " " + inventoryItem.Details.NamePlural + Environment.NewLine;
+                        ScrollToBottomOfMessages();
                     }
                 }
 
-                // Refresh player information and inventory controls
-                lblHitPoints.Text = _player.CurrentHitPoints.ToString();
-                lblGold.Text = _player.Gold.ToString();
-                lblExperience.Text = _player.ExperiencePoints.ToString();
-                lblLevel.Text = _player.Level.ToString();
+                UpdatePlayerStats();
 
                 UpdateInventoryListInUI();
                 UpdateWeaponListInUI();
@@ -136,6 +139,7 @@ namespace SuperAdventure
 
                 // Add a blank line to the messages box, just for appearance.
                 rtbMessages.Text += Environment.NewLine;
+                ScrollToBottomOfMessages();
 
                 // Move player to current location (to heal player and create a new monsterto fight)
                 MoveTo(_player.CurrentLocation);
@@ -168,30 +172,13 @@ namespace SuperAdventure
 
             // Display message
             rtbMessages.Text += "You drink a " + potion.Name + Environment.NewLine;
+            ScrollToBottomOfMessages();
 
             // Monster gets their turn to atack
-
-            //Determine the amont of damage the monster does to the player
-            int damageToPlayer = RandomNumberGenerator.NumberBetween(0, _currentMonster.MaximumDamage);
-
-            //Display message
-            rtbMessages.Text += "The " + _currentMonster.Name + " did " + damageToPlayer.ToString() + " points of damage." + Environment.NewLine;
-
-            // Subtract damage from the player
-            _player.CurrentHitPoints -= damageToPlayer;
-
-            if (_player.CurrentHitPoints <= 0)
-            {
-                // Display message
-                rtbMessages.Text += "The " + _currentMonster.Name + " killed you." +
-                Environment.NewLine;
-
-                // Move player to "Home"
-                MoveTo(World.LocationByID(World.LOCATION_ID_HOME));
-            }
+            MonsterAttack();
 
             // Refresh player data in UI
-            lblHitPoints.Text = _player.CurrentHitPoints.ToString();
+            UpdatePlayerStats();
             UpdateInventoryListInUI();
             UpdatePotionListInUI();
         }
@@ -202,6 +189,7 @@ namespace SuperAdventure
             if (!_player.HasRequiredItemToEnterThisLocation(newLocation))
             {
                 rtbMessages.Text += "You must have a " + newLocation.ItemRequiredToEnter.Name + " to enter this location." + Environment.NewLine;
+                ScrollToBottomOfMessages();
                 return;
             }
 
@@ -222,7 +210,7 @@ namespace SuperAdventure
             _player.CurrentHitPoints = _player.MaximumHitPoints;
 
             // Update Hit Points in UI
-            lblHitPoints.Text = _player.CurrentHitPoints.ToString();
+            UpdatePlayerStats();
 
             // Does the location have a quest?
             if (newLocation.QuestAvailableHere != null)
@@ -247,6 +235,7 @@ namespace SuperAdventure
                             // Dsiplay message
                             rtbMessages.Text += Environment.NewLine;
                             rtbMessages.Text += "You complete the " + newLocation.QuestAvailableHere.Name + " quest." + Environment.NewLine;
+                            ScrollToBottomOfMessages();
 
                             // Remove quest items from inventory
                             _player.RemoveQuestCompletionItems(newLocation.QuestAvailableHere);
@@ -257,6 +246,7 @@ namespace SuperAdventure
                             rtbMessages.Text += newLocation.QuestAvailableHere.RewardGold.ToString() + " gold" + Environment.NewLine;
                             rtbMessages.Text += newLocation.QuestAvailableHere.RewardItem.Name + Environment.NewLine;
                             rtbMessages.Text += Environment.NewLine;
+                            ScrollToBottomOfMessages();
 
                             _player.ExperiencePoints += newLocation.QuestAvailableHere.RewardExperiencePoints;
                             _player.Gold += newLocation.QuestAvailableHere.RewardGold;
@@ -267,37 +257,42 @@ namespace SuperAdventure
 
                             // Mark the quest as completed
                             _player.MarkQuestCompleted(newLocation.QuestAvailableHere);
+
+                            UpdatePlayerStats();
                         }
                     }
                 }
-            }
 
-            else
-            {
-                // The player does not already have the quest
-
-                // Display the messages
-                rtbMessages.Text += "You recieve the " + newLocation.QuestAvailableHere.Name + " quest." + Environment.NewLine;
-                rtbMessages.Text += newLocation.QuestAvailableHere.Description + Environment.NewLine;
-                rtbMessages.Text += "To complete it return with: " + Environment.NewLine;
-
-                foreach (QuestCompletionItem qci in newLocation.QuestAvailableHere.QuestCompletionItems)
+                else
                 {
-                    if (qci.Quantity == 1)
-                    {
-                        rtbMessages.Text += qci.Quantity.ToString() + " " + qci.Details.Name + Environment.NewLine;
+                    // The player does not already have the quest
 
-                    }
-                    else
+                    // Display the messages
+                    rtbMessages.Text += "You recieve the " + newLocation.QuestAvailableHere.Name + " quest." + Environment.NewLine;
+                    rtbMessages.Text += newLocation.QuestAvailableHere.Description + Environment.NewLine;
+                    rtbMessages.Text += "To complete it return with: " + Environment.NewLine;
+                    ScrollToBottomOfMessages();
+
+                    foreach (QuestCompletionItem qci in newLocation.QuestAvailableHere.QuestCompletionItems)
                     {
-                        rtbMessages.Text += qci.Quantity.ToString() + " " + qci.Details.NamePlural + Environment.NewLine;
+                        if (qci.Quantity == 1)
+                        {
+                            rtbMessages.Text += qci.Quantity.ToString() + " " + qci.Details.Name + Environment.NewLine;
+                            ScrollToBottomOfMessages();
+                        }
+                        else
+                        {
+                            rtbMessages.Text += qci.Quantity.ToString() + " " + qci.Details.NamePlural + Environment.NewLine;
+                            ScrollToBottomOfMessages();
+                        }
                     }
+
+                    rtbMessages.Text += Environment.NewLine;
+                    ScrollToBottomOfMessages();
+
+                    // Add the quest to the player'squest list
+                    _player.Quests.Add(new PlayerQuest(newLocation.QuestAvailableHere));
                 }
-
-                rtbMessages.Text += Environment.NewLine;
-
-                // Add the quest to the player'squest list
-                _player.Quests.Add(new PlayerQuest(newLocation.QuestAvailableHere));
             }
 
 
@@ -305,6 +300,7 @@ namespace SuperAdventure
             if (newLocation.MonsterLivingHere != null)
             {
                 rtbMessages.Text += "You see a " + newLocation.MonsterLivingHere.Name + Environment.NewLine;
+                ScrollToBottomOfMessages();
 
                 // Make a new monster, using the values from the standard monster in the World.Monster list
                 Monster standardMonster = World.MonsterByID(newLocation.MonsterLivingHere.ID);
@@ -429,6 +425,45 @@ namespace SuperAdventure
                 cboPotions.ValueMember = "ID";
                 cboPotions.SelectedIndex = 0;
             }
+        }
+
+        private void MonsterAttack()
+        {
+            //Determine the amont of damage the monster does to the player
+            int damageToPlayer = RandomNumberGenerator.NumberBetween(0, _currentMonster.MaximumDamage);
+
+            //Display message
+            rtbMessages.Text += "The " + _currentMonster.Name + " did " + damageToPlayer.ToString() + " points of damage." + Environment.NewLine;
+            ScrollToBottomOfMessages();
+
+            // Subtract damage from the player
+            _player.CurrentHitPoints -= damageToPlayer;
+
+            if (_player.CurrentHitPoints <= 0)
+            {
+                // Display message
+                rtbMessages.Text += "The " + _currentMonster.Name + " killed you." +
+                Environment.NewLine;
+                ScrollToBottomOfMessages();
+
+                // Move player to "Home"
+                MoveTo(World.LocationByID(World.LOCATION_ID_HOME));
+            }
+        }
+
+        private void UpdatePlayerStats()
+        {
+            // Refresh player information and inventory controls
+            lblHitPoints.Text = _player.CurrentHitPoints.ToString();
+            lblGold.Text = _player.Gold.ToString();
+            lblExperience.Text = _player.ExperiencePoints.ToString();
+            lblLevel.Text = _player.Level.ToString();
+        }
+
+        private void ScrollToBottomOfMessages()
+        {
+            rtbMessages.SelectionStart = rtbMessages.Text.Length;
+            rtbMessages.ScrollToCaret();
         }
     }
 }
