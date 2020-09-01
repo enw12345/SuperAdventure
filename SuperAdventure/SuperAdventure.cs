@@ -30,8 +30,13 @@ namespace SuperAdventure
             {
                 _player = Player.CreateDefaultPlayer();
             }
+
+            lblHitPoints.DataBindings.Add("Text", _player, "CurrentHitPoints");
+            lblGold.DataBindings.Add("Text", _player, "Gold");
+            lblExperience.DataBindings.Add("Text", _player, "ExperiencePoints");
+            lblLevel.DataBindings.Add("Text", _player, "Level");
+
             MoveTo(_player.CurrentLocation);
-            UpdatePlayerStats();
             ScrollToBottomOfMessages();
         }
 
@@ -74,9 +79,6 @@ namespace SuperAdventure
             // Display message
             rtbMessages.Text += "You hit the " + _currentMonster.Name + " for " + damageToMonster.ToString() + " points." + Environment.NewLine;
             ScrollToBottomOfMessages();
-
-            // Monster gets their turn to atack
-            MonsterAttack();
 
             //Check if the monster is dead
             if (_currentMonster.CurrentHitPoints <= 0)
@@ -138,8 +140,6 @@ namespace SuperAdventure
                     }
                 }
 
-                UpdatePlayerStats();
-
                 UpdateInventoryListInUI();
                 UpdateWeaponListInUI();
                 UpdatePotionListInUI();
@@ -151,6 +151,9 @@ namespace SuperAdventure
                 // Move player to current location (to heal player and create a new monsterto fight)
                 MoveTo(_player.CurrentLocation);
             }
+
+            // Monster gets their turn to atack
+            MonsterAttack();         
         }
 
         private void btnUsePotion_Click(object sender, EventArgs e)
@@ -185,7 +188,6 @@ namespace SuperAdventure
             MonsterAttack();
 
             // Refresh player data in UI
-            UpdatePlayerStats();
             UpdateInventoryListInUI();
             UpdatePotionListInUI();
         }
@@ -215,9 +217,6 @@ namespace SuperAdventure
 
             // Completely heal the player
             _player.CurrentHitPoints = _player.MaximumHitPoints;
-
-            // Update Hit Points in UI
-            UpdatePlayerStats();
 
             // Does the location have a quest?
             if (newLocation.QuestAvailableHere != null)
@@ -264,8 +263,6 @@ namespace SuperAdventure
 
                             // Mark the quest as completed
                             _player.MarkQuestCompleted(newLocation.QuestAvailableHere);
-
-                            UpdatePlayerStats();
                         }
                     }
                 }
@@ -456,7 +453,6 @@ namespace SuperAdventure
 
             // Subtract damage from the player
             _player.CurrentHitPoints -= damageToPlayer;
-            UpdatePlayerStats();
 
             if (_player.CurrentHitPoints <= 0)
             {
@@ -468,15 +464,6 @@ namespace SuperAdventure
                 // Move player to "Home"
                 MoveTo(World.LocationByID(World.LOCATION_ID_HOME));
             }
-        }
-
-        private void UpdatePlayerStats()
-        {
-            // Refresh player information and inventory controls
-            lblHitPoints.Text = _player.CurrentHitPoints.ToString();
-            lblGold.Text = _player.Gold.ToString();
-            lblExperience.Text = _player.ExperiencePoints.ToString();
-            lblLevel.Text = _player.Level.ToString();
         }
 
         private void ScrollToBottomOfMessages()
