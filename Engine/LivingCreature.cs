@@ -31,7 +31,5 @@ namespace Engine
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
         }
-
-
     }
 }
